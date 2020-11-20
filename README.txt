@@ -1,0 +1,1 @@
+My little scratch project for learning opengl, some of it's ugly but most of it is for reference just for me to review and see again, and since setting up opengl required lots of setup I like to look at this for reference
