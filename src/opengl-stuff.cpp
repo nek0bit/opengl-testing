@@ -1,10 +1,18 @@
 ﻿#include "opengl-stuff.hpp"
 
-float vel_rx = 0;
-float vel_ry = 0;
-
 int view_width = 0;
 int view_height = 0;
+
+float deltaTime = 0;
+float lastFrame = 0;
+
+glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 camFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 camUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+glm::vec3 direction;
+float yaw;
+float pitch;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -31,25 +39,63 @@ void handleInput(GLFWwindow* window)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
+	float speed = 10;
+
 	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
 	{
-		vel_rx += 1;
+		camPos -= glm::normalize(glm::cross(camFront, camUp)) * speed * deltaTime;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
 	{
-		vel_rx -= 1;
+		camPos += glm::normalize(glm::cross(camFront, camUp)) * speed * deltaTime;
 	}
+
+	// Cancel camFront y
+	glm::vec3 noY{1.0f, 0.0f, 1.0f};
 
 	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
 	{
-		vel_ry += 1;
+		camPos += (camFront * noY) * speed * deltaTime;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
 	{
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		vel_ry -= 1;
+		camPos -= (camFront * noY) * speed * deltaTime;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	{
+		glm::vec3 yAdd{ 0.0f, 1.0f, 0.0f };
+		camPos += yAdd * speed * deltaTime;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+	{
+		glm::vec3 yAdd{ 0.0f, -1.0f, 0.0f };
+		camPos += yAdd * speed * deltaTime;
+	}
+
+	// CAMERA YAW/PITCH
+
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	{
+		yaw -= .5f;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	{
+		yaw += .5f;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+	{
+		pitch += .5f;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	{
+		pitch -= .5f;
 	}
 }
 
@@ -259,14 +305,16 @@ int main()
 	unsigned int projectionLoc = glGetUniformLocation(shaderProgram, "projection");
 	unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
 	unsigned int viewLoc = glGetUniformLocation(shaderProgram, "view");
-
-	double smooth_rx = 0;
 	
 	
 	// Loop
 	while (!glfwWindowShouldClose(window))
 	{
 		auto time_before = std::chrono::system_clock::now();
+
+		float current = glfwGetTime();
+		deltaTime = current - lastFrame;
+		lastFrame = current;
 
 		// Begin
 		handleInput(window);
@@ -276,24 +324,33 @@ int main()
 
 		// Define some objects
 		std::vector<glm::vec3> objects = {
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(5.0f, 1.0f, -5.0f),
-			glm::vec3(-2.0f, -0.3f, 2.0f),
+			glm::vec3(0.0f,  0.0f,  0.0f),
+			glm::vec3(2.0f,  5.0f, -15.0f),
+			glm::vec3(-1.5f, -2.2f, -2.5f),
+			glm::vec3(-3.8f, -2.0f, -12.3f),
+			glm::vec3(2.4f, -0.4f, -3.5f),
+			glm::vec3(-1.7f,  3.0f, -7.5f),
+			glm::vec3(1.3f, -2.0f, -2.5f),
+			glm::vec3(1.5f,  2.0f, -2.5f),
+			glm::vec3(1.5f,  0.2f, -1.5f),
+			glm::vec3(-1.3f,  1.0f, -1.5f)
 		};
-
-		// Smooth values
-		smooth_rx = smooth_rx * 0.80;
-		smooth_rx += vel_rx;
 
 		// Transformations and math
 		glm::mat4 projection{ 1.0f };
 		projection = glm::perspective(glm::radians(45.0f), (float)view_width / (float)view_height, 0.1f, 100.0f);
 		//projection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, 0.1f, 100.0f);
 
+		direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+		direction.y = sin(glm::radians(pitch));
+		direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+
 		// - Setup view
 		glm::mat4 view{ 1.0f };
-		view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-		//model = glm::scale(model, glm::vec3(0.5, 0.5, 0.5));
+		view = glm::lookAt(camPos,
+			camPos + camFront,
+			camUp);
+		//view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
 		
 		// Setup shader for this frame
 		glUseProgram(shaderProgram);
@@ -301,6 +358,8 @@ int main()
 		// Do transformations on objects
 		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+		camFront = glm::normalize(direction);
 
 		// Draw
 		// - bind textures
@@ -311,7 +370,7 @@ int main()
 		for (size_t i = 0; i < objects.size(); ++i) {
 			glm::mat4 model{ 1.0f }; // Transition for this object
 			model = glm::translate(model, objects[i]);
-			model = glm::rotate(model, glm::radians((30.0f*i) + static_cast<float>(smooth_rx)), glm::vec3(1.0, 1.0, 1.0));
+			model = glm::rotate(model, glm::radians(30.0f*i), glm::vec3(1.0, 1.0, 1.0));
 			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 			glDrawArrays(GL_TRIANGLES, 0, amount);
 		}
